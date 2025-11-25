@@ -169,21 +169,26 @@ if [ "$REMOTE_INSTALL" = true ]; then
     echo "[ERROR] curl is required for remote installation but not found." >&2
     exit 1
   fi
-  LATEST_RELEASE_URL="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
-  echo "[INFO] Fetching latest release information..."
-  LATEST_TAG=$(curl -s "$LATEST_RELEASE_URL" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | tr -d 'v')
-  if [ -z "$LATEST_TAG" ]; then
-    echo "[ERROR] Failed to fetch latest release tag" >&2
-    exit 1
-  fi
 
-  AMT_VERSION="$LATEST_TAG"
+  # Only fetch from API if version not explicitly provided
+  if [ -z "${AMT_VERSION:-}" ]; then
+    LATEST_RELEASE_URL="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    echo "[INFO] Fetching latest release information..."
+    LATEST_TAG=$(curl -s "$LATEST_RELEASE_URL" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | tr -d 'v')
+    if [ -z "$LATEST_TAG" ]; then
+      echo "[ERROR] Failed to fetch latest release tag" >&2
+      exit 1
+    fi
+    AMT_VERSION="$LATEST_TAG"
+  else
+    echo "[INFO] Using explicitly provided version: $AMT_VERSION"
+  fi
   if [ -f "$STAMP_FILE" ] && [ "$(cat "$STAMP_FILE")" = "$AMT_VERSION" ]; then
     echo "[INFO] arm-migration-tools v$AMT_VERSION already installed at $INSTALL_PREFIX, skipping download/extract."
     SCRIPTS_DIR="$INSTALL_PREFIX/scripts"
   else
-    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/v$LATEST_TAG/arm-migration-tools-v${LATEST_TAG}-${ARCH_NORM}.tar.gz"
-    echo "[INFO] Downloading version v$LATEST_TAG from $DOWNLOAD_URL..."
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/v$AMT_VERSION/arm-migration-tools-v${AMT_VERSION}-${ARCH_NORM}.tar.gz"
+    echo "[INFO] Downloading version v$AMT_VERSION from $DOWNLOAD_URL..."
 
     TEMP_DIR=$(mktemp -d)
     cd "$TEMP_DIR"
