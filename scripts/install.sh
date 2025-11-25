@@ -172,9 +172,14 @@ if [ "$REMOTE_INSTALL" = true ]; then
 
   # Only fetch from API if version not explicitly provided
   if [ -z "${AMT_VERSION:-}" ]; then
-    LATEST_RELEASE_URL="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    RELEASES_URL="https://api.github.com/repos/$GITHUB_REPO/releases"
     echo "[INFO] Fetching latest release information..."
-    LATEST_TAG=$(curl -s "$LATEST_RELEASE_URL" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | tr -d 'v')
+    # Try /releases/latest first, fall back to /releases if it fails
+    LATEST_TAG=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | tr -d 'v')
+    if [ -z "$LATEST_TAG" ]; then
+      # Fallback: Get first non-draft, non-prerelease from /releases
+      LATEST_TAG=$(curl -s "$RELEASES_URL" | grep -m1 '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | tr -d 'v')
+    fi
     if [ -z "$LATEST_TAG" ]; then
       echo "[ERROR] Failed to fetch latest release tag" >&2
       exit 1
